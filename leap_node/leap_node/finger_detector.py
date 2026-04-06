@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from leap_msgs.msg import Finger  # カスタムメッセージ型をインポート
+from geometry_msgs.msg import Point
 import leap
 import time
 import curses
@@ -18,26 +19,24 @@ class FingerDetector(Node):
         self.connection = leap.Connection()
         self.connection.add_listener(self.listener)
 
+    def _to_meters(self, leap_pos):
+        return Point(
+            x=-leap_pos.z * 0.001,  # Z -> -X 
+            y=-leap_pos.x * 0.001,  # X -> -Y
+            z=leap_pos.y * 0.001    # Y -> Z
+        )
+
     def handle_finger_data(self, hands):
         # 検出された手を処理
         self.stdscr.clear()
         for hand in hands:
-            for finger in hand.fingers:
+            for digit in hand.digits:
+                
                 finger_msg = Finger()
-                finger_msg.id = finger.id
-                finger_msg.type = finger.type
-                finger_msg.tip_position.x = finger.tip_position.x
-                finger_msg.tip_position.y = -finger.tip_position.z
-                finger_msg.tip_position.z = finger.tip_position.y
-                finger_msg.direction.x = finger.direction.x
-                finger_msg.direction.y = -finger.direction.z
-                finger_msg.direction.z = finger.direction.y
-                finger_msg.velocity.x = finger.velocity.x
-                finger_msg.velocity.y = -finger.velocity.z
-                finger_msg.velocity.z = finger.velocity.y
-                finger_msg.length = finger.length
-                finger_msg.width = finger.width
-
+                finger_msg.id = digit.finger_id
+                tip_point = self._to_meters(digit.distal.next_joint)
+                finger_msg.tip_position = tip_point
+                
                 if str(hand.type) == "HandType.Left":
                     self.left_hand_publisher.publish(finger_msg)
                     self.stdscr.addstr(f"Left Hand Finger ID {finger_msg.id}:\n Tip Position: x={finger_msg.tip_position.x:.2f}, y={finger_msg.tip_position.y:.2f}, z={finger_msg.tip_position.z:.2f}\n")
@@ -71,6 +70,10 @@ def curses_main(stdscr):
     rclpy.shutdown()
 
 def main(args=None):
+    """ rclpy.init()
+    node = FingerDetector()
+    node.run()
+    rclpy.shutdown() """
     curses.wrapper(curses_main)
 
 if __name__ == '__main__':
