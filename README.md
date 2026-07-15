@@ -51,10 +51,6 @@ In `leap_node`, the position, posture, and gesture results obtained from Leap Mo
 - `finger_detector`: Displays finger joint information
 - `rviz_visualizer`: Displays finger joint information on RViz
 
-## leap_msgs
-
-Custom message types are defined to send all the contents of the `Hand` object defined by the Leap Motion SDK as ROS 2 messages.
-
 
 ## License
 This package is subject to the MIT Licnese

@@ -1,5 +1,0 @@
-geometry_msgs/Point elbow_position   # 肘の位置 (x, y, z)
-geometry_msgs/Point wrist_position   # 手首の位置 (x, y, z)
-geometry_msgs/Vector3 direction      # 腕の方向ベクトル (x, y, z)
-float32 length                       # 腕の長さ (mm)
-float32 width                        # 腕の幅 (mm)

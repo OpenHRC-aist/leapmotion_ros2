@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, PoseArray
-from leap_msgs.msg import Hand  # カスタムメッセージ型をインポート
+from hand_msgs.msg import Hand  # カスタムメッセージ型をインポート
 import subprocess
 
 class RvizVisualizer(Node):

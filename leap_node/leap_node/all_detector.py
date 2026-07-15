@@ -1,83 +1,109 @@
 import rclpy
 from rclpy.node import Node
-from leap_msgs.msg import Hand, Finger, Bone, Arm  # カスタムメッセージ型をインポート
+from hand_msgs.msg import Hand, Finger, Bone, Arm  # カスタムメッセージ型をインポート
 import leap
 import time
 import curses
+import numpy as np
+from scipy.spatial.transform import Rotation
 
 class AllDetector(Node):
     '''
     Leap Motionから手のすべての情報を取得し、ROS2トピックにパブリッシュするクラス
     '''
-    def __init__(self, stdscr):
+    def __init__(self):
         super().__init__('all_detector')
         self.left_hand_publisher = self.create_publisher(Hand, 'left_hand', 10)
         self.right_hand_publisher = self.create_publisher(Hand, 'right_hand', 10)
-        self.stdscr = stdscr
+        #self.stdscr = stdscr
         self.listener = LeapMotionListener(self.handle_hand_data)
         self.connection = leap.Connection()
         self.connection.add_listener(self.listener)
+    
+    def bone_length(self, bone):
+        tip = bone.next_joint
+        base = bone.prev_joint
+        return np.linalg.norm([tip.x - base.x, tip.y - base.y, tip.z - base.z])
+    
+    def finger_length(self, digit):
+        return sum(self.bone_length(digit.bones[i]) for i in range(4))
+
+    def finger_direction(self, bone):
+        q = Rotation.from_quat([bone.rotation.x, bone.rotation.y, bone.rotation.z, bone.rotation.w])
+        direction = q.apply([0, 0, -1])
+        return direction
 
     def handle_hand_data(self, hands):
         # 検出された手を処理
-        self.stdscr.clear()
+        #self.stdscr.clear()
         left_hand_detected = False
         right_hand_detected = False
 
         for hand in hands:
             msg = Hand()
             msg.type = "Left" if str(hand.type) == "HandType.Left" else "Right"
-            msg.position.x = hand.palm.position.x
-            msg.position.y = -hand.palm.position.z
-            msg.position.z = hand.palm.position.y
-            msg.velocity.x = hand.palm.velocity.x
-            msg.velocity.y = -hand.palm.velocity.z
-            msg.velocity.z = hand.palm.velocity.y
-            msg.normal.x = hand.palm.normal.x
-            msg.normal.y = -hand.palm.normal.z
-            msg.normal.z = hand.palm.normal.y
-            msg.orientation.x = hand.palm.orientation.x
+            msg.position.x  =  hand.palm.position.x
+            msg.position.y  = -hand.palm.position.z
+            msg.position.z  =  hand.palm.position.y
+            msg.velocity.x  =  hand.palm.velocity.x
+            msg.velocity.y  = -hand.palm.velocity.z
+            msg.velocity.z  =  hand.palm.velocity.y
+            msg.normal.x    =  hand.palm.normal.x
+            msg.normal.y    = -hand.palm.normal.z
+            msg.normal.z    =  hand.palm.normal.y
+            msg.orientation.x =  hand.palm.orientation.x
             msg.orientation.y = -hand.palm.orientation.z
-            msg.orientation.z = hand.palm.orientation.y
-            msg.orientation.w = hand.palm.orientation.w
-            msg.grab_strength = hand.grab_strength
+            msg.orientation.z =  hand.palm.orientation.y
+            msg.orientation.w =  hand.palm.orientation.w
+            msg.grab_strength  = hand.grab_strength
             msg.pinch_strength = hand.pinch_strength
 
-            # # 指の情報を追加
-            # for finger in hand.fingers:
-            #     finger_msg = Finger()
-            #     finger_msg.id = finger.id
-            #     finger_msg.type = finger.type
-            #     finger_msg.tip_position.x = finger.tip_position.x
-            #     finger_msg.tip_position.y = -finger.tip_position.z
-            #     finger_msg.tip_position.z = finger.tip_position.y
-            #     finger_msg.direction.x = finger.direction.x
-            #     finger_msg.direction.y = -finger.direction.z
-            #     finger_msg.direction.z = finger.direction.y
-            #     finger_msg.velocity.x = finger.velocity.x
-            #     finger_msg.velocity.y = -finger.velocity.z
-            #     finger_msg.velocity.z = finger.velocity.y
-            #     finger_msg.length = finger.length
-            #     finger_msg.width = finger.width
+            wrist = hand.arm.next_joint 
 
-            #     # 骨の情報を追加
-            #     for bone in finger.bones:
-            #         bone_msg = Bone()
-            #         bone_msg.type = bone.type
-            #         bone_msg.prev_joint.x = bone.prev_joint.x
-            #         bone_msg.prev_joint.y = -bone.prev_joint.z
-            #         bone_msg.prev_joint.z = bone.prev_joint.y
-            #         bone_msg.next_joint.x = bone.next_joint.x
-            #         bone_msg.next_joint.y = -bone.next_joint.z
-            #         bone_msg.next_joint.z = bone.next_joint.y
-            #         bone_msg.direction.x = bone.direction.x
-            #         bone_msg.direction.y = -bone.direction.z
-            #         bone_msg.direction.z = bone.direction.y
-            #         bone_msg.length = bone.length
-            #         bone_msg.width = bone.width
-            #         finger_msg.bones.append(bone_msg)
+            for finger_idx, digit in enumerate(hand.digits):  
+                finger_msg = Finger()
+                finger_msg.id = finger_idx 
 
-            #     msg.fingers.append(finger_msg)
+                finger_msg.tip_position.x = -(digit.bones[3].next_joint.z - wrist.z) * 1.0e-3
+                finger_msg.tip_position.y = -(digit.bones[3].next_joint.x - wrist.x) * 1.0e-3
+                finger_msg.tip_position.z =  (digit.bones[3].next_joint.y - wrist.y) * 1.0e-3
+
+                direction = self.finger_direction(digit.distal)
+                finger_msg.tip_direction.x = -direction[2]
+                finger_msg.tip_direction.y = -direction[0]
+                finger_msg.tip_direction.z =  direction[1]
+
+                finger_msg.tip_orientation.x = -digit.distal.rotation.z
+                finger_msg.tip_orientation.y = -digit.distal.rotation.x
+                finger_msg.tip_orientation.z =  digit.distal.rotation.y
+                finger_msg.tip_orientation.w =  digit.distal.rotation.w
+
+                finger_msg.length = self.finger_length(digit) * 1.0e-3
+                finger_msg.width  = digit.intermediate.width * 1.0e-3
+
+                for bone_type, bone in enumerate(digit.bones): 
+                    bone_msg = Bone()
+                    bone_msg.type = bone_type 
+
+                    bone_msg.prev_joint.x = -(bone.prev_joint.z - wrist.z) * 1.0e-3
+                    bone_msg.prev_joint.y = -(bone.prev_joint.x - wrist.x) * 1.0e-3
+                    bone_msg.prev_joint.z =  (bone.prev_joint.y - wrist.y) * 1.0e-3
+
+                    bone_msg.next_joint.x = -(bone.next_joint.z - wrist.z) * 1.0e-3
+                    bone_msg.next_joint.y = -(bone.next_joint.x - wrist.x) * 1.0e-3
+                    bone_msg.next_joint.z =  (bone.next_joint.y - wrist.y) * 1.0e-3
+
+                    bone_msg.rotation.x = -bone.rotation.z
+                    bone_msg.rotation.y = -bone.rotation.x
+                    bone_msg.rotation.z =  bone.rotation.y
+                    bone_msg.rotation.w =  bone.rotation.w
+
+                    bone_msg.width = bone.width * 1.0e-3
+
+                    finger_msg.bones.append(bone_msg)
+
+                msg.fingers.append(finger_msg)
+
 
             # # 腕の情報を追加
             # arm_msg = Arm()
@@ -112,9 +138,9 @@ class AllDetector(Node):
             self.right_hand_publisher.publish(Hand())
             # self.stdscr.addstr("Right hand is not detected\n")
 
-        self.stdscr.refresh()
+        #self.stdscr.refresh()
 
-    def display_hand_data(self, hand_label, msg):
+    """ def display_hand_data(self, hand_label, msg):
         # 手の情報を詳細に表示
         self.stdscr.addstr(f"{hand_label}:\n")
         self.stdscr.addstr(f"  Position: x={msg.position.x:.2f}, y={msg.position.y:.2f}, z={msg.position.z:.2f}\n")
@@ -122,7 +148,7 @@ class AllDetector(Node):
         self.stdscr.addstr(f"  Normal: x={msg.normal.x:.2f}, y={msg.normal.y:.2f}, z={msg.normal.z:.2f}\n")
         self.stdscr.addstr(f"  Orientation: x={msg.orientation.x:.2f}, y={msg.orientation.y:.2f}, z={msg.orientation.z:.2f}, w={msg.orientation.w:.2f}\n")
         self.stdscr.addstr(f"  Grab Strength: {msg.grab_strength:.2f}\n")
-        self.stdscr.addstr(f"  Pinch Strength: {msg.pinch_strength:.2f}\n\n")
+        self.stdscr.addstr(f"  Pinch Strength: {msg.pinch_strength:.2f}\n\n") """
 
     def run(self):
         with self.connection.open():
@@ -142,14 +168,18 @@ class LeapMotionListener(leap.Listener):
     def on_tracking_event(self, event):
         self.callback(event.hands)  # 検出された手をコールバック関数に渡す
 
-def curses_main(stdscr):
+""" def curses_main(stdscr):
     rclpy.init()
     node = AllDetector(stdscr)
     node.run()
-    rclpy.shutdown()
+    rclpy.shutdown() """
 
 def main(args=None):
-    curses.wrapper(curses_main)
+    rclpy.init()
+    node = AllDetector()
+    node.run()
+    rclpy.shutdown()
+    #curses.wrapper(curses_main)
 
 if __name__ == '__main__':
     main()

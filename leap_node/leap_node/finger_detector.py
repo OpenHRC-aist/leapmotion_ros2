@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from leap_msgs.msg import Finger # カスタムメッセージ型をインポート
+from hand_msgs.msg import Finger # カスタムメッセージ型をインポート
 from geometry_msgs.msg import Point, Vector3
 import leap
 import time

@@ -1,6 +1,0 @@
-uint8 type                         # 骨の種類 (0: Metacarpal, 1: Proximal, 2: Intermediate, 3: Distal)
-geometry_msgs/Point prev_joint     # 骨の基部の位置 (x, y, z)
-geometry_msgs/Point next_joint     # 骨の先端の位置 (x, y, z)
-geometry_msgs/Vector3 direction    # 骨の方向ベクトル (x, y, z)
-float32 length                     # 骨の長さ (mm)
-float32 width                      # 骨の幅 (mm)

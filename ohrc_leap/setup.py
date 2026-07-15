@@ -22,7 +22,8 @@ setup(
     entry_points={
         'console_scripts': [
             'state_topic_publisher = ohrc_leap.state_topic_publisher:main',
-            
+            'ur5_dual_palm_teleoperation_publisher = ohrc_leap.ur5_dual_palm_teleoperation_publisher:main',
+            'fake_hands_publisher = ohrc_leap.fake_hands_publisher:main',
         ],
     },
 )

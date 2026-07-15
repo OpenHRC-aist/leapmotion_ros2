@@ -1,4 +1,4 @@
-from leap_msgs.msg import Hands, Hand
+from hand_msgs.msg import Hands, Hand
 from rclpy.node import Node
 import rclpy
 from ohrc_msgs.msg import State

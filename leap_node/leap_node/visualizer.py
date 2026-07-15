@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point, TransformStamped
-from leap_msgs.msg import Hand  # カスタムメッセージ型をインポート
+from hand_msgs.msg import Hand  # カスタムメッセージ型をインポート
 from tf2_ros import TransformBroadcaster
 
 class Visualizer(Node):

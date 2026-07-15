@@ -1,9 +1,0 @@
-string type
-geometry_msgs/Point position
-geometry_msgs/Vector3 velocity
-geometry_msgs/Vector3 normal
-geometry_msgs/Quaternion orientation
-float32 grab_strength
-float32 pinch_strength
-Finger[] fingers
-Arm arm
